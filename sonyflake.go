@@ -15,7 +15,7 @@ import (
 )
 
 // These constants are the bit lengths of Sonyflake ID parts.
-const (
+var (
 	BitLenTime      = 39                               // bit length of time
 	BitLenSequence  = 8                                // bit length of sequence number
 	BitLenMachineID = 63 - BitLenTime - BitLenSequence // bit length of machine id
@@ -56,6 +56,10 @@ type Sonyflake struct {
 // - Settings.MachineID returns an error.
 // - Settings.CheckMachineID returns false.
 func NewSonyflake(st Settings) *Sonyflake {
+	if BitLenSequence <= 0 || BitLenTime <= 0 || BitLenMachineID <= 0 {
+		panic("bit length must be greater than zero")
+	}
+
 	sf := new(Sonyflake)
 	sf.mutex = new(sync.Mutex)
 	sf.sequence = uint16(1<<BitLenSequence - 1)
@@ -85,7 +89,7 @@ func NewSonyflake(st Settings) *Sonyflake {
 // NextID generates a next unique ID.
 // After the Sonyflake time overflows, NextID returns an error.
 func (sf *Sonyflake) NextID() (uint64, error) {
-	const maskSequence = uint16(1<<BitLenSequence - 1)
+	var maskSequence = uint16(1<<BitLenSequence - 1)
 
 	sf.mutex.Lock()
 	defer sf.mutex.Unlock()
@@ -127,8 +131,8 @@ func (sf *Sonyflake) toID() (uint64, error) {
 	}
 
 	return uint64(sf.elapsedTime)<<(BitLenSequence+BitLenMachineID) |
-		uint64(sf.sequence)<<BitLenMachineID |
-		uint64(sf.machineID), nil
+		uint64(sf.machineID)<<BitLenSequence |
+		uint64(sf.sequence), nil
 }
 
 func privateIPv4() (net.IP, error) {
@@ -176,14 +180,14 @@ func elapsedTime(id uint64) uint64 {
 
 // SequenceNumber returns the sequence number of a Sonyflake ID.
 func SequenceNumber(id uint64) uint64 {
-	const maskSequence = uint64((1<<BitLenSequence - 1) << BitLenMachineID)
-	return id & maskSequence >> BitLenMachineID
+	var maskSequence = uint64(1<<BitLenSequence - 1)
+	return id & maskSequence
 }
 
 // MachineID returns the machine ID of a Sonyflake ID.
 func MachineID(id uint64) uint64 {
-	const maskMachineID = uint64(1<<BitLenMachineID - 1)
-	return id & maskMachineID
+	var maskMachineID = uint64((1<<BitLenMachineID - 1) << BitLenSequence)
+	return id & maskMachineID >> BitLenSequence
 }
 
 // Decompose returns a set of Sonyflake ID parts.
