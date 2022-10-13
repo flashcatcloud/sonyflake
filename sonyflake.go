@@ -130,9 +130,9 @@ func (sf *Sonyflake) toID() (uint64, error) {
 		return 0, errors.New("over the time limit")
 	}
 
-	return uint64(sf.elapsedTime)<<(BitLenSequence+BitLenMachineID) |
-		uint64(sf.machineID)<<BitLenSequence |
-		uint64(sf.sequence), nil
+	return uint64(sf.sequence)<<(BitLenTime+BitLenMachineID) |
+		uint64(sf.elapsedTime)<<BitLenMachineID |
+		uint64(sf.machineID), nil
 }
 
 func privateIPv4() (net.IP, error) {
@@ -169,25 +169,34 @@ func lower16BitPrivateIP() (uint16, error) {
 	return uint16(ip[2])<<8 + uint16(ip[3]), nil
 }
 
+func Lower8BitPrivateIP() (uint16, error) {
+	ip, err := privateIPv4()
+	if err != nil {
+		return 0, err
+	}
+
+	return uint16(ip[3]), nil
+}
+
 // ElapsedTime returns the elapsed time when the given Sonyflake ID was generated.
 func ElapsedTime(id uint64) time.Duration {
 	return time.Duration(elapsedTime(id) * sonyflakeTimeUnit)
 }
 
 func elapsedTime(id uint64) uint64 {
-	return id >> (BitLenSequence + BitLenMachineID)
+	var maskElapsedTime = uint64((1<<BitLenTime - 1) << BitLenMachineID)
+	return id & maskElapsedTime >> BitLenMachineID
 }
 
 // SequenceNumber returns the sequence number of a Sonyflake ID.
 func SequenceNumber(id uint64) uint64 {
-	var maskSequence = uint64(1<<BitLenSequence - 1)
-	return id & maskSequence
+	return id >> (BitLenTime + BitLenMachineID)
 }
 
 // MachineID returns the machine ID of a Sonyflake ID.
 func MachineID(id uint64) uint64 {
-	var maskMachineID = uint64((1<<BitLenMachineID - 1) << BitLenSequence)
-	return id & maskMachineID >> BitLenSequence
+	var maskMachineID = uint64(1<<BitLenMachineID - 1)
+	return id & maskMachineID
 }
 
 // Decompose returns a set of Sonyflake ID parts.
