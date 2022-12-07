@@ -170,7 +170,7 @@ func mockIPv4BySeed(seed net.IP) net.IP {
 	var bits [4]byte
 	rseed := time.Now().Unix()
 	hostname, err := os.Hostname()
-	if err == nil {
+	if err == nil && len(hostname) > 0 {
 		rseed = int64(len(hostname))
 		for i := range hostname {
 			rseed += int64(hostname[i])
