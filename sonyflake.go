@@ -9,7 +9,9 @@ package sonyflake
 
 import (
 	"errors"
+	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -135,12 +137,16 @@ func (sf *Sonyflake) toID() (uint64, error) {
 		uint64(sf.machineID), nil
 }
 
+// if no private ip address exist, return 4 byte of the hostname
+// no error return
 func privateIPv4() (net.IP, error) {
 	as, err := net.InterfaceAddrs()
 	if err != nil {
-		return nil, err
+		return mockIPv4BySeed(nil), nil
+		// return nil, err
 	}
 
+	var seed net.IP
 	for _, a := range as {
 		ipnet, ok := a.(*net.IPNet)
 		if !ok || ipnet.IP.IsLoopback() {
@@ -151,8 +157,30 @@ func privateIPv4() (net.IP, error) {
 		if isPrivateIPv4(ip) {
 			return ip, nil
 		}
+		seed = ip
 	}
-	return nil, errors.New("no private ip address")
+	return mockIPv4BySeed(seed), nil
+	// return nil, errors.New("no private ip address")
+}
+
+func mockIPv4BySeed(seed net.IP) net.IP {
+	if len(seed) == 4 {
+		return seed
+	}
+	var bits [4]byte
+	rseed := time.Now().Unix()
+	hostname, err := os.Hostname()
+	if err == nil && len(hostname) > 0 {
+		rseed = int64(len(hostname))
+		for i := range hostname {
+			rseed += int64(hostname[i])
+		}
+	}
+	random := rand.New(rand.NewSource(rseed))
+	for i := 0; i < len(bits); i++ {
+		bits[i] = byte(random.Intn(256))
+	}
+	return net.IPv4(bits[0], bits[1], bits[2], bits[3])
 }
 
 func isPrivateIPv4(ip net.IP) bool {
