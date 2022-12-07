@@ -176,9 +176,9 @@ func mockIPv4BySeed(seed net.IP) net.IP {
 			rseed += int64(hostname[i])
 		}
 	}
-	rand.Seed(rseed)
+	random := rand.New(rand.NewSource(rseed))
 	for i := 0; i < len(bits); i++ {
-		bits[i] = byte(rand.Intn(256))
+		bits[i] = byte(random.Intn(256))
 	}
 	return net.IPv4(bits[0], bits[1], bits[2], bits[3])
 }
